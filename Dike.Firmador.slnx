@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="AplicacionPrincipal/AplicacionPrincipal.csproj" Id="4d8988e9-e153-4f3b-a9a4-b9730634a8d7" />
+  <Project Path="FirmadorMaui/FirmadorMaui.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+</Solution>

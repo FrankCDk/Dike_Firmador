@@ -1,0 +1,31 @@
+## .NET Core / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Archivos de Usuario y Secretos
+appsettings.Development.json
+usersecrets.json
+
+## Docker
+.dockerignore
+
+## Herramientas de Compilación y Publicación
+publish/
+*.swp
+*~
+*.log
+
+## Rider / JetBrains
+.idea/
+*.sln.iml
+
+## VS Code
+.vscode/
+
+## Base de datos (en caso de que generes backups locales)
+*.db
+*.bak

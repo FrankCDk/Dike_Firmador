@@ -1,0 +1,20 @@
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FirmadorMaui.MainPage">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="30">
+
+            <Label Text="Firmador de Configuración" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center"/>
+
+            <Button Text="Generar nuevo par de llaves" Clicked="OnGenerateKeysClicked" BackgroundColor="Purple"/>
+            <Label x:Name="LblKeyStatus" Text="Estado: No hay llaves cargadas" FontAttributes="Italic"/>
+
+            <Button Text="Seleccionar archivo JSON sin firmar" Clicked="OnSelectJsonClicked" BackgroundColor="Gray"/>
+            <Label x:Name="LblFileStatus" Text="Archivo: Ninguno seleccionado"/>
+
+            <Button Text="FIRMAR Y GENERAR JSON" Clicked="OnSignJsonClicked" BackgroundColor="Green" FontAttributes="Bold" HeightRequest="50"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
