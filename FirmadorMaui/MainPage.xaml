@@ -1,20 +1,37 @@
 ﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="FirmadorMaui.MainPage">
+             x:Class="FirmadorMaui.MainPage"
+             BackgroundColor="#F8FAFC">
 
-    <ScrollView>
-        <VerticalStackLayout Spacing="20" Padding="30">
+    <Grid Padding="30" ColumnDefinitions="300, *" ColumnSpacing="30">
 
-            <Label Text="Firmador de Configuración" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center"/>
+        <VerticalStackLayout Grid.Column="0" Spacing="20">
+            <Label Text="Firmador Dike" FontSize="24" FontAttributes="Bold" TextColor="#1E293B"/>
 
-            <Button Text="Generar nuevo par de llaves" Clicked="OnGenerateKeysClicked" BackgroundColor="Purple"/>
-            <Label x:Name="LblKeyStatus" Text="Estado: No hay llaves cargadas" FontAttributes="Italic"/>
+            <VerticalStackLayout Spacing="10">
+                <Label Text="1. Gestión de Llaves" FontAttributes="Bold" TextColor="#4B5563"/>
+                <Button Text="✨ Generar nuevas llaves" Clicked="OnGenerateKeysClicked" BackgroundColor="#8B5CF6" CornerRadius="8"/>
+                <Button Text="🔑 Cargar llave existente" Clicked="OnSelectKeyClicked" BackgroundColor="#6366F1" CornerRadius="8"/>
+                <Label x:Name="LblKeyPath" Text="Ninguna seleccionada" FontSize="11" TextColor="Gray"/>
+            </VerticalStackLayout>
 
-            <Button Text="Seleccionar archivo JSON sin firmar" Clicked="OnSelectJsonClicked" BackgroundColor="Gray"/>
-            <Label x:Name="LblFileStatus" Text="Archivo: Ninguno seleccionado"/>
+            <BoxView HeightRequest="1" Color="#E5E7EB"/>
 
-            <Button Text="FIRMAR Y GENERAR JSON" Clicked="OnSignJsonClicked" BackgroundColor="Green" FontAttributes="Bold" HeightRequest="50"/>
-
+            <VerticalStackLayout Spacing="10">
+                <Label Text="2. Procesar Configuración" FontAttributes="Bold" TextColor="#4B5563"/>
+                <Button Text="📄 Cargar JSON" Clicked="OnSelectJsonClicked" BackgroundColor="#10B981" CornerRadius="8"/>
+                <Button Text="🚀 FIRMAR Y CIFRAR" Clicked="OnSignJsonClicked" BackgroundColor="#EF4444" 
+                HeightRequest="60" CornerRadius="12" FontAttributes="Bold"/>
+            </VerticalStackLayout>
         </VerticalStackLayout>
-    </ScrollView>
+
+        <Border Grid.Column="1" StrokeShape="RoundRectangle 15" StrokeThickness="0" BackgroundColor="White" Padding="10">
+            <VerticalStackLayout>
+                <Label Text="Vista Previa de Configuración" FontAttributes="Bold" Margin="0,0,0,10"/>
+                <ScrollView HeightRequest="400">
+                    <Editor x:Name="EditorJsonPreview" BackgroundColor="#F1F5F9" IsReadOnly="True" AutoSize="Disabled"/>
+                </ScrollView>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
 </ContentPage>

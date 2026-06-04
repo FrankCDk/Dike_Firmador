@@ -1,28 +1,48 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using CommunityToolkit.Maui.Storage;
 
 namespace FirmadorMaui
 {
     public partial class MainPage : ContentPage
     {
-        private string privateKeyPath = Path.Combine(FileSystem.AppDataDirectory, "private.xml");
+        // Solo necesitamos las rutas seleccionadas por el usuario
+        private string selectedKeyPath = "";
         private string selectedJsonPath = "";
 
         public MainPage() => InitializeComponent();
 
-        private void OnGenerateKeysClicked(object sender, EventArgs e)
+        private async void OnGenerateKeysClicked(object sender, EventArgs e)
         {
             using var rsa = RSA.Create(2048);
 
-            // Guardar Privada (Para el Firmador)
-            File.WriteAllText(privateKeyPath, rsa.ToXmlString(true));
+            // Generar contenido
+            string privateKey = rsa.ToXmlString(true);
+            string publicKey = rsa.ToXmlString(false);
 
-            // Guardar Pública (Para la MainApp)
-            string publicKeyPath = Path.Combine(FileSystem.AppDataDirectory, "public.xml");
-            File.WriteAllText(publicKeyPath, rsa.ToXmlString(false)); // FALSE = Solo Pública
+            // Guardar Privada
+            var privResult = await FileSaver.Default.SaveAsync("private.xml",
+                new MemoryStream(Encoding.UTF8.GetBytes(privateKey)), CancellationToken.None);
 
-            LblKeyStatus.Text = $"Estado: Llaves creadas. Copia 'public.xml' a tu MainApp.";
+            // Guardar Pública
+            var pubResult = await FileSaver.Default.SaveAsync("public.xml",
+                new MemoryStream(Encoding.UTF8.GetBytes(publicKey)), CancellationToken.None);
+
+            if (privResult.IsSuccessful && pubResult.IsSuccessful)
+            {
+                await DisplayAlert("Éxito", "Llaves creadas y guardadas con éxito.", "OK");
+            }
+        }
+
+        private async void OnSelectKeyClicked(object sender, EventArgs e)
+        {
+            var result = await FilePicker.Default.PickAsync();
+            if (result != null)
+            {
+                selectedKeyPath = result.FullPath; // Asignamos a la variable correcta
+                LblKeyPath.Text = $"Llave: {result.FileName}";
+            }
         }
 
         private async void OnSelectJsonClicked(object sender, EventArgs e)
@@ -31,76 +51,76 @@ namespace FirmadorMaui
             if (result != null)
             {
                 selectedJsonPath = result.FullPath;
-                LblFileStatus.Text = $"Archivo: {result.FileName}";
+                string content = File.ReadAllText(result.FullPath);
+                EditorJsonPreview.Text = content;
             }
         }
-
+        
         private async void OnSignJsonClicked(object sender, EventArgs e)
         {
-            if (!File.Exists(privateKeyPath) || string.IsNullOrEmpty(selectedJsonPath))
+            // Validación: Aseguramos que ambas rutas estén cargadas
+            if (string.IsNullOrEmpty(selectedKeyPath) || string.IsNullOrEmpty(selectedJsonPath))
             {
-                await DisplayAlert("Error", "Genera las llaves y selecciona un JSON primero.", "OK");
+                await DisplayAlert("Error", "Debes seleccionar la llave privada Y el JSON.", "OK");
                 return;
             }
 
-            // 1. Preparar datos y llave AES
-            byte[] rawData = File.ReadAllBytes(selectedJsonPath);
-
-            // IMPORTANTE: Esta misma cadena debe ser igual a la de tu MainApp
-            byte[] aesKey = SHA256.HashData(Encoding.UTF8.GetBytes("Llave_Maestra_Local"));
-            byte[] aesIv = new byte[16]; // Vector de inicialización (puedes usar este fijo)
-
-            // 2. Cifrar los datos con AES
-            byte[] encryptedData = EncryptAes(rawData, aesKey, aesIv);
-
-            // 3. Cargar llave RSA para firmar los datos YA CIFRADOS
-            using var rsa = RSA.Create();
-            rsa.FromXmlString(File.ReadAllText(privateKeyPath));
-
-            // 4. Firmar el bloque cifrado (es más seguro firmar el resultado cifrado)
-            byte[] signature = rsa.SignData(encryptedData, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-
-            // 5. Crear el JSON firmado (ahora el Payload es el binario cifrado)
-            var signedData = new
+            try
             {
-                PayloadBase64 = Convert.ToBase64String(encryptedData),
-                SignatureBase64 = Convert.ToBase64String(signature)
-            };
+                // 1. Cargar datos y cifrar
+                byte[] rawData = File.ReadAllBytes(selectedJsonPath);
+                byte[] aesKey = SHA256.HashData(Encoding.UTF8.GetBytes("Llave_Maestra_Local"));
+                byte[] aesIv = new byte[16];
+                byte[] encryptedData = EncryptAes(rawData, aesKey, aesIv);
 
-            string output = JsonSerializer.Serialize(signedData, new JsonSerializerOptions { WriteIndented = true });
+                // 2. Cargar la llave privada
+                using var rsa = RSA.Create();
+                string keyXml = File.ReadAllText(selectedKeyPath);
+                rsa.FromXmlString(keyXml);
 
-            // Guardar archivo
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
-            string fileName = $"appsettings_{timestamp}.json";
-            string outputPath = Path.Combine(FileSystem.Current.AppDataDirectory, fileName);
-            File.WriteAllText(outputPath, output);
+                // 3. Firmar el bloque cifrado
+                byte[] signature = rsa.SignData(encryptedData, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-            await DisplayAlert("Éxito", $"JSON firmado y cifrado guardado en:\n{outputPath}", "OK");
+                // 4. Crear el JSON
+                var signedData = new
+                {
+                    PayloadBase64 = Convert.ToBase64String(encryptedData),
+                    SignatureBase64 = Convert.ToBase64String(signature)
+                };
 
-            // Abrir carpeta
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo()
+                string output = JsonSerializer.Serialize(signedData, new JsonSerializerOptions { WriteIndented = true });
+
+                // 5. NUEVA OPCIÓN: Elegir dónde guardar el archivo
+                var fileName = $"appsettings_{DateTime.Now:yyyyMMdd_HHmm}.json";
+
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(output));
+
+                var fileSaverResult = await FileSaver.Default.SaveAsync(fileName, stream, CancellationToken.None);
+
+                if (fileSaverResult.IsSuccessful)
+                {
+                    await DisplayAlert("Éxito", $"Archivo guardado en:\n{fileSaverResult.FilePath}", "OK");
+                }
+                else
+                {
+                    await DisplayAlert("Información", "El guardado fue cancelado.", "OK");
+                }
+            }
+            catch (Exception ex)
             {
-                FileName = FileSystem.AppDataDirectory,
-                UseShellExecute = true,
-                Verb = "open"
-            });
+                await DisplayAlert("Error Crítico", ex.Message, "OK");
+            }
         }
 
         private byte[] EncryptAes(byte[] data, byte[] key, byte[] iv)
         {
-            using (Aes aes = Aes.Create())
-            {
-                aes.Key = key; aes.IV = iv;
-                using (var ms = new MemoryStream())
-                {
-                    using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
-                    {
-                        cs.Write(data, 0, data.Length);
-                        cs.FlushFinalBlock();
-                        return ms.ToArray();
-                    }
-                }
-            }
+            using Aes aes = Aes.Create();
+            aes.Key = key; aes.IV = iv;
+            using var ms = new MemoryStream();
+            using var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write);
+            cs.Write(data, 0, data.Length);
+            cs.FlushFinalBlock();
+            return ms.ToArray();
         }
     }
 }
